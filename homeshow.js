@@ -1084,37 +1084,36 @@
         if (url && url !== '#') navigate(url);
     }
 
-    // ---------- Inicialización global ----------
-    function init() {
-        // Obtener datos desde episodios.js
-        if (typeof window.processEpisodes === 'function') {
-            DATA = window.processEpisodes();
-        } else {
-            console.error('window.processEpisodes no está definido. Asegúrate de cargar episodios.js');
-            DATA = [];
-        }
+function init() {
+    // Obtener datos desde episodios.js
+    if (typeof window.processEpisodes === 'function') {
+        DATA = window.processEpisodes();
+    } else {
+        console.error('window.processEpisodes no está definido. Asegúrate de cargar episodios.js');
+        DATA = [];
+    }
 
-        // Inyectar estilos adicionales (los que estaban en el index original y son necesarios para los componentes)
-        injectComponentStyles();
+    // Inyectar estilos adicionales
+    injectComponentStyles();
 
-        // Iniciar el feed
-        initFeed();
+    // Iniciar el feed (llenar el contenido de la página principal)
+    initFeed();
 
-        // Escuchar clicks en enlaces internos (ya lo hace el router con preventDefault)
-        document.addEventListener('click', (e) => {
-            const link = e.target.closest('a');
-            if (!link) return;
-            const href = link.getAttribute('href');
-            if (!href) return;
-            if (href.startsWith('http') || href.startsWith('//') || href.startsWith('#')) return;
-            e.preventDefault();
-            navigate(href);
-        });
+    // Escuchar clicks en enlaces internos
+    document.addEventListener('click', (e) => {
+        const link = e.target.closest('a');
+        if (!link) return;
+        const href = link.getAttribute('href');
+        if (!href) return;
+        if (href.startsWith('http') || href.startsWith('//') || href.startsWith('#')) return;
+        e.preventDefault();
+        navigate(href);
+    });
 
-        // Manejar popstate (botones atrás/adelante)
-        window.addEventListener('popstate', () => {
-            renderPath(window.location.pathname + window.location.search);
-        });
+    // Manejar popstate (botones atrás/adelante)
+    window.addEventListener('popstate', () => {
+        renderPath(window.location.pathname + window.location.search);
+    });
 
         // Scroll header
         window.addEventListener('scroll', () => {
@@ -1138,6 +1137,9 @@
             lastScrollTop = st <= 0 ? 0 : st;
         }, false);
     }
+       // ¡¡¡ IMPORTANTE: Procesar la ruta actual !!!
+    renderPath(window.location.pathname + window.location.search);
+}
 
     function injectComponentStyles() {
         // Estos estilos son los que estaban en el index original y son necesarios para los componentes
