@@ -113,8 +113,6 @@
 
 <!-- Scripts: episodios.js debe existir y definir window.processEpisodes -->
 <script src="episodios.js"></script>
-<!-- Nuestro módulo principal -->
-<script src="homeshow.js"></script>
 <!-- Definición de páginas especiales (se puede ampliar) -->
 <script>
     window.PAGES = [
@@ -123,6 +121,8 @@
         { titulo: "404", url: "/404", script: "404.js", header: false } // página de error, opcional
     ];
 </script>
+    <!-- Nuestro módulo principal -->
+<script src="homeshow.js"></script>
 <!-- Inicialización -->
 <script>
     document.addEventListener('DOMContentLoaded', () => {
