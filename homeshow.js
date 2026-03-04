@@ -1084,36 +1084,37 @@
         if (url && url !== '#') navigate(url);
     }
 
-function init() {
-    // Obtener datos desde episodios.js
-    if (typeof window.processEpisodes === 'function') {
-        DATA = window.processEpisodes();
-    } else {
-        console.error('window.processEpisodes no está definido. Asegúrate de cargar episodios.js');
-        DATA = [];
-    }
+    // ---------- Inicialización global ----------
+    function init() {
+        // Obtener datos desde episodios.js
+        if (typeof window.processEpisodes === 'function') {
+            DATA = window.processEpisodes();
+        } else {
+            console.error('window.processEpisodes no está definido. Asegúrate de cargar episodios.js');
+            DATA = [];
+        }
 
-    // Inyectar estilos adicionales
-    injectComponentStyles();
+        // Inyectar estilos adicionales (los que estaban en el index original y son necesarios para los componentes)
+        injectComponentStyles();
 
-    // Iniciar el feed (llenar el contenido de la página principal)
-    initFeed();
+        // Iniciar el feed (llenar el contenido de la página principal)
+        initFeed();
 
-    // Escuchar clicks en enlaces internos
-    document.addEventListener('click', (e) => {
-        const link = e.target.closest('a');
-        if (!link) return;
-        const href = link.getAttribute('href');
-        if (!href) return;
-        if (href.startsWith('http') || href.startsWith('//') || href.startsWith('#')) return;
-        e.preventDefault();
-        navigate(href);
-    });
+        // Escuchar clicks en enlaces internos (ya lo hace el router con preventDefault)
+        document.addEventListener('click', (e) => {
+            const link = e.target.closest('a');
+            if (!link) return;
+            const href = link.getAttribute('href');
+            if (!href) return;
+            if (href.startsWith('http') || href.startsWith('//') || href.startsWith('#')) return;
+            e.preventDefault();
+            navigate(href);
+        });
 
-    // Manejar popstate (botones atrás/adelante)
-    window.addEventListener('popstate', () => {
-        renderPath(window.location.pathname + window.location.search);
-    });
+        // Manejar popstate (botones atrás/adelante)
+        window.addEventListener('popstate', () => {
+            renderPath(window.location.pathname + window.location.search);
+        });
 
         // Scroll header
         window.addEventListener('scroll', () => {
@@ -1136,10 +1137,10 @@ function init() {
             }
             lastScrollTop = st <= 0 ? 0 : st;
         }, false);
+
+        // ¡¡¡ IMPORTANTE: Procesar la ruta actual !!!
+        renderPath(window.location.pathname + window.location.search);
     }
-       // ¡¡¡ IMPORTANTE: Procesar la ruta actual !!!
-    renderPath(window.location.pathname + window.location.search);
-}
 
     function injectComponentStyles() {
         // Estos estilos son los que estaban en el index original y son necesarios para los componentes
@@ -1364,7 +1365,6 @@ function init() {
         // Playlist
         addToUserPlaylist,
         isInPlaylist,
-        // Renderizado (para páginas estáticas, se pueden añadir más)
         // Inicialización
         init
     };
