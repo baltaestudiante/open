@@ -1,9 +1,10 @@
-// homeshow.js
-// Funciones de renderizado de componentes (cards, carruseles, vistas de episodio/serie)
-// NO contiene lógica de negocio ni router. Solo recibe datos y devuelve HTML.
+// ===============================
+// homeshow.js - Diseños y funciones de renderizado
+// No contiene lógica de enrutamiento, solo exporta funciones a window.StreamHub
+// ===============================
 
 (function() {
-    // ---------- CONSTANTES (íconos) ----------
+    // ---------- Configuración ----------
     const ICONS = {
         play: 'https://marca1.odoo.com/web/image/508-f876320c/play.svg',
         add: 'https://marca1.odoo.com/web/image/509-c555b4ef/a%C3%B1adir%20a.svg',
@@ -12,7 +13,540 @@
         noDl: 'https://nikichitonjesus.odoo.com/web/image/1051-622a3db3/no-desc.webp'
     };
 
-    // Función para inyectar estilos (solo una vez)
+    const CATEGORIES = [
+        "Todos",
+        "Derecho",
+        "Física y Astronomía",
+        "Matemáticas",
+        "Historia",
+        "Filosofía",
+        "Economía y Finanzas",
+        "Ciencias Sociales",
+        "Arte y Cultura",
+        "Literatura y Audiolibros",
+        "Cine y TV",
+        "Documentales",
+        "Ciencias Naturales",
+        "Tecnología e Informática",
+        "Otras Ciencias"
+    ];
+
+    // Playlist
+    const playlistKey = 'streamhub_userPlaylist';
+    let userPlaylist = JSON.parse(localStorage.getItem(playlistKey)) || [];
+
+    function isInPlaylist(mediaUrl) {
+        return userPlaylist.some(item => item.mediaUrl === mediaUrl);
+    }
+
+    function addToUserPlaylist(episodeData) {
+        if (!episodeData || !episodeData.mediaUrl) return false;
+        const exists = userPlaylist.some(item => item.mediaUrl === episodeData.mediaUrl);
+        if (!exists) {
+            const playlistItem = {
+                mediaUrl: episodeData.mediaUrl,
+                mediaType: episodeData.type || 'audio',
+                coverUrlContainer: episodeData.cover,
+                coverUrlInfo: episodeData.cover,
+                title: episodeData.title,
+                detailUrl: episodeData.detailUrl || '#',
+                author: episodeData.author || 'Desconocido',
+                next: [],
+                text: episodeData.description || '',
+                allowDownload: episodeData.allowDownload !== undefined ? episodeData.allowDownload : true
+            };
+            userPlaylist.push(playlistItem);
+            localStorage.setItem(playlistKey, JSON.stringify(userPlaylist));
+            updateAddButtons(episodeData.id || episodeData.mediaUrl);
+            return true;
+        }
+        return false;
+    }
+
+    function updateAddButtons(identifier) {
+        const buttons = document.querySelectorAll(`[data-episode-id="${identifier}"], [data-media-url="${identifier}"]`);
+        buttons.forEach(btn => {
+            if (btn.dataset.added !== 'true') {
+                if (btn.tagName === 'IMG') btn.src = ICONS.added;
+                btn.dataset.added = 'true';
+                btn.title = 'Añadido a tu lista';
+            }
+        });
+    }
+
+    // ========== FUNCIONES DE RENDERIZADO ==========
+    function createStandardCard(ep) {
+        const inPlaylist = isInPlaylist(ep.mediaUrl);
+        const addIcon = inPlaylist ? ICONS.added : ICONS.add;
+        const dlIcon = ep.allowDownload ? ICONS.dl : ICONS.noDl;
+        return `<div class="card-std group">
+            <div class="relative w-full aspect-square rounded-xl overflow-hidden bg-zinc-800" onclick="window.StreamHub.goToDetail('${ep.detailUrl}')">
+                <img src="${ep.cover}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">
+                <div class="overlay-full">
+                    <img src="${addIcon}" class="action-icon" onclick="window.StreamHub.handleAdd(event, ${ep.id}); return false;" 
+                         data-episode-id="${ep.id}" data-added="${inPlaylist}">
+                    <img src="${ICONS.play}" class="play-icon-lg" onclick="window.StreamHub.handlePlay(event, ${ep.id}); return false;">
+                    <img src="${dlIcon}" class="action-icon" onclick="window.StreamHub.handleDl(event, ${ep.id}); return false;" 
+                         title="${ep.allowDownload ? 'Descargar' : 'Descarga no disponible'}">
+                </div>
+                <div class="mobile-play-button" onclick="window.StreamHub.handlePlay(event, ${ep.id}); return false;">
+                    <img src="${ICONS.play}" alt="Play">
+                </div>
+            </div>
+            <div onclick="window.StreamHub.goToDetail('${ep.detailUrl}')">
+                <h3 class="font-bold text-white text-sm truncate">${ep.title}</h3>
+                <p class="text-xs text-gray-400 mt-1 truncate">${ep.author}</p>
+            </div>
+        </div>`;
+    }
+
+    function createVideoExpand(ep) {
+        const inPlaylist = isInPlaylist(ep.mediaUrl);
+        const addIcon = inPlaylist ? ICONS.added : ICONS.add;
+        const dlIcon = ep.allowDownload ? ICONS.dl : ICONS.noDl;
+        const hasCover2 = ep.coverWide && ep.coverWide !== ep.cover;
+        return `<div class="card-video group">
+            <img src="${ep.cover}" class="absolute inset-0 w-full h-full object-cover z-10 group-hover:opacity-0 transition-opacity duration-300">
+            ${hasCover2 ? `<img src="${ep.coverWide}" class="absolute inset-0 w-full h-full object-cover opacity-0 group-hover:opacity-100 transition-opacity duration-300">` : ''}
+            <div class="overlay-full z-20">
+                <img src="${addIcon}" class="action-icon" onclick="window.StreamHub.handleAdd(event, ${ep.id}); return false;" 
+                     data-episode-id="${ep.id}" data-added="${inPlaylist}">
+                <img src="${ICONS.play}" class="play-icon-lg" onclick="window.StreamHub.handlePlay(event, ${ep.id}); return false;">
+                <img src="${dlIcon}" class="action-icon" onclick="window.StreamHub.handleDl(event, ${ep.id}); return false;" 
+                     title="${ep.allowDownload ? 'Descargar' : 'Descarga no disponible'}">
+            </div>
+            <div class="mobile-play-button z-30" onclick="window.StreamHub.handlePlay(event, ${ep.id}); return false;">
+                <img src="${ICONS.play}" alt="Play">
+            </div>
+            <div class="absolute bottom-2 left-2 z-20 bg-black/60 px-2 py-0.5 rounded text-[10px] font-bold">VIDEO</div>
+        </div>`;
+    }
+
+    function createListItem(ep, idx) {
+        const inPlaylist = isInPlaylist(ep.mediaUrl);
+        const addIcon = inPlaylist ? ICONS.added : ICONS.add;
+        return `<div class="list-item group">
+            <span class="text-gray-500 font-bold w-4 text-center text-sm flex-shrink-0">${idx + 1}</span>
+            <div class="relative w-12 h-12 sm:w-14 sm:h-14 flex-shrink-0 rounded overflow-hidden" onclick="window.StreamHub.goToDetail('${ep.detailUrl}')">
+                <img src="${ep.cover}" class="w-full h-full object-cover">
+                <div class="overlay-mini" onclick="window.StreamHub.handlePlay(event, ${ep.id}); return false;"><img src="${ICONS.play}" class="play-icon-sm"></div>
+            </div>
+            <div class="item-content" onclick="window.StreamHub.goToDetail('${ep.detailUrl}')">
+                <h4 class="font-bold text-sm truncate text-white">${ep.title}</h4>
+                <p class="text-xs text-gray-500 truncate">${ep.author}</p>
+            </div>
+            <div class="item-actions">
+                <button class="lg:opacity-0 lg:group-hover:opacity-100 transition-opacity" onclick="window.StreamHub.handleAdd(event, ${ep.id}); return false;">
+                    <img src="${addIcon}" alt="Agregar" class="w-5 h-5" data-episode-id="${ep.id}" data-added="${inPlaylist}">
+                </button>
+                <div class="lg:hidden mobile-play-button" style="position: static; width: 32px; height: 32px;" onclick="window.StreamHub.handlePlay(event, ${ep.id}); return false;">
+                    <img src="${ICONS.play}" alt="Play" class="w-4 h-4">
+                </div>
+            </div>
+        </div>`;
+    }
+
+    function createGridCard(item) {
+        const inPlaylist = isInPlaylist(item.mediaUrl);
+        const addIcon = inPlaylist ? ICONS.added : ICONS.add;
+        const dlIcon = item.allowDownload ? ICONS.dl : ICONS.noDl;
+        return `
+            <div class="grid-card group">
+                <div class="aspect-square bg-zinc-800 relative" onclick="window.StreamHub.goToDetail('${item.detailUrl}')">
+                    <img src="${item.cover}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">
+                    <div class="overlay-full">
+                        <img src="${addIcon}" class="action-icon" onclick="window.StreamHub.handleAdd(event, ${item.id}); return false;" 
+                             data-episode-id="${item.id}" data-added="${inPlaylist}">
+                        <img src="${ICONS.play}" class="play-icon-lg" onclick="window.StreamHub.handlePlay(event, ${item.id}); return false;">
+                        <img src="${dlIcon}" class="action-icon" onclick="window.StreamHub.handleDl(event, ${item.id}); return false;" 
+                             title="${item.allowDownload ? 'Descargar' : 'Descarga no disponible'}">
+                    </div>
+                    <div class="mobile-play-button" onclick="window.StreamHub.handlePlay(event, ${item.id}); return false;">
+                        <img src="${ICONS.play}" alt="Play">
+                    </div>
+                </div>
+                <div onclick="window.StreamHub.goToDetail('${item.detailUrl}')">
+                    <h4 class="font-bold text-sm text-white truncate">${item.title}</h4>
+                    <p class="text-xs text-gray-500 truncate">${item.author}</p>
+                </div>
+            </div>
+        `;
+    }
+
+    function createCarousel(title, type, items, categoryContext) {
+        if (!items || items.length === 0) return '';
+        const id = 'c-' + Math.random().toString(36).substr(2, 9);
+        let content = '';
+        if (type === 'double') {
+            content = `<div id="${id}" class="flex flex-col flex-wrap h-[580px] gap-x-6 gap-y-6 overflow-x-auto no-scrollbar scroll-smooth">` + items.map(ep => createStandardCard(ep)).join('') + `</div>`;
+        } else if (type === 'list') {
+            content = `<div id="${id}" class="flex gap-4 sm:gap-8 overflow-x-auto no-scrollbar scroll-smooth pb-4">`;
+            for (let i = 0; i < items.length; i += 4) {
+                content += `<div class="card-list-group min-w-[300px] sm:min-w-[340px]">` +
+                    (items[i] ? createListItem(items[i], i) : '') +
+                    (items[i+1] ? createListItem(items[i+1], i+1) : '') +
+                    (items[i+2] ? createListItem(items[i+2], i+2) : '') +
+                    (items[i+3] ? createListItem(items[i+3], i+3) : '') +
+                    `</div>`;
+            }
+            content += `</div>`;
+        } else if (type === 'expand') {
+            content = `<div id="${id}" class="flex gap-3 sm:gap-4 overflow-x-auto no-scrollbar scroll-smooth py-2 pl-1">` + items.map(ep => createVideoExpand(ep)).join('') + `</div>`;
+        } else {
+            content = `<div id="${id}" class="flex gap-4 sm:gap-6 overflow-x-auto no-scrollbar scroll-smooth py-2 pl-1">` + items.map(ep => createStandardCard(ep)).join('') + `</div>`;
+        }
+        return `<section class="carousel-wrapper relative group/section mb-8 sm:mb-12">
+            <div class="flex items-end justify-between mb-3 sm:mb-5 px-1">
+                <h2 class="text-xl sm:text-2xl font-bold tracking-tight text-white hover:text-blue-500 transition-colors">${title}</h2>
+                <button onclick="window.StreamHub.filterByCategory('${categoryContext}')" class="text-xs font-bold text-gray-500 uppercase tracking-wider hover:text-white">Ver todo</button>
+            </div>
+            <div class="relative">
+                <div class="nav-btn left" onclick="document.getElementById('${id}').scrollLeft -= 600"><button>❮</button></div>
+                ${content}
+                <div class="nav-btn right" onclick="document.getElementById('${id}').scrollLeft += 600"><button>❯</button></div>
+            </div>
+        </section>`;
+    }
+
+    function createSeriesCarousel(DATA) {
+        const id = 'c-series-' + Math.random().toString(36).substr(2, 9);
+        const seriesGroups = {};
+        DATA.forEach(ep => {
+            if (ep.series && ep.series.titulo_serie) {
+                const serieKey = ep.series.titulo_serie;
+                if (!seriesGroups[serieKey]) {
+                    seriesGroups[serieKey] = {episodes: [], seriesInfo: ep.series};
+                }
+                seriesGroups[serieKey].episodes.push(ep);
+            }
+        });
+        const seriesKeys = Object.keys(seriesGroups);
+        if (seriesKeys.length === 0) return '';
+        let content = `<div id="${id}" class="flex gap-4 sm:gap-8 overflow-x-auto no-scrollbar scroll-smooth pb-4">`;
+        seriesKeys.forEach(serieKey => {
+            let group = seriesGroups[serieKey];
+            group.episodes.sort((a, b) => new Date(b.date) - new Date(a.date));
+            const s = group.seriesInfo;
+            if (!s || group.episodes.length < 1) return;
+            content += `<div class="card-list-group min-w-[300px] sm:min-w-[340px]">
+                <div class="mb-4 cursor-pointer" onclick="window.StreamHub.goToDetail('${s.url_serie}')">
+                    <div class="relative w-full aspect-square rounded-xl overflow-hidden bg-zinc-800">
+                        <img src="${s.portada_serie}" class="w-full h-full object-cover">
+                    </div>
+                    <h3 class="font-bold text-white text-sm truncate mt-2">${s.titulo_serie}</h3>
+                    <p class="text-xs text-gray-400">ver serie</p>
+                </div>`;
+            group.episodes.slice(0, 4).forEach((ep, i) => {
+                content += createListItem(ep, i);
+            });
+            content += `</div>`;
+        });
+        content += `</div>`;
+        return `<section class="carousel-wrapper relative group/section mb-8 sm:mb-12">
+            <div class="flex items-end justify-between mb-3 sm:mb-5 px-1">
+                <h2 class="text-xl sm:text-2xl font-bold tracking-tight text-white hover:text-blue-500 transition-colors">Series y Cursos Académicos</h2>
+                <button class="text-xs font-bold text-gray-500 uppercase tracking-wider hover:text-white">Ver todo</button>
+            </div>
+            <div class="relative">
+                <div class="nav-btn left" onclick="document.getElementById('${id}').scrollLeft -= 600"><button>❮</button></div>
+                ${content}
+                <div class="nav-btn right" onclick="document.getElementById('${id}').scrollLeft += 600"><button>❯</button></div>
+            </div>
+        </section>`;
+    }
+
+    // Vistas de detalle
+    function renderSeriesWidget(series, episodes) {
+        const lastEpisode = episodes[0];
+        const cover = series.portada_serie || episodes[0].cover;
+        const author = episodes[0].author;
+        const description = series.descripcion_serie || 'Sin descripción';
+        const episodesHtml = episodes.map((ep, index) => {
+            const inPlaylist = isInPlaylist(ep.mediaUrl);
+            return `
+            <div class="podcast-episode-card" data-episode-id="${ep.id}">
+                <img class="podcast-episode-cover" src="${ep.cover}" alt="${ep.title}" loading="lazy">
+                <div class="podcast-episode-info">
+                    <h3 class="podcast-episode-title">${ep.title}</h3>
+                    <div class="podcast-episode-author">
+                        ${ep.author} <span>${ep.type === 'video' ? 'VIDEO' : 'PODCAST'}</span>
+                    </div>
+                    <div class="podcast-episode-description">${ep.description || ''}</div>
+                    <div class="podcast-episode-actions">
+                        <div class="podcast-left-episode-actions">
+                            <button class="podcast-action-btn podcast-add-btn" data-mediaurl="${ep.mediaUrl}" title="Añadir a mi lista">
+                                <img src="${inPlaylist ? ICONS.added : ICONS.add}" alt="añadir">
+                            </button>
+                            <button class="podcast-action-btn podcast-download-btn" data-mediaurl="${ep.mediaUrl}" data-allow="${ep.allowDownload}" title="${ep.allowDownload ? 'Descargar' : 'Descarga no disponible'}">
+                                <img src="${ep.allowDownload ? ICONS.dl : ICONS.noDl}" alt="descargar">
+                            </button>
+                            <button class="podcast-action-btn podcast-share-btn" data-detailurl="${ep.detailUrl}" data-title="${ep.title}" title="Compartir">
+                                <img src="${ICONS.add}" alt="compartir">
+                            </button>
+                        </div>
+                        <button class="podcast-play-episode-btn podcast-play-specific" data-index="${index}" title="Reproducir episodio">
+                            <img src="${ICONS.play}" alt="play">
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `}).join('');
+        return `
+            <div class="podcast-widget">
+                <div class="podcast-header" id="podcastHeader">
+                    <div class="podcast-header-bg" style="background-image: url('${cover}');"></div>
+                    <div class="podcast-header-content">
+                        <div class="podcast-thumbnail">
+                            <img src="${cover}" alt="${series.titulo_serie}" id="seriesCoverImg">
+                        </div>
+                        <div class="podcast-info">
+                            <h1 class="series-title">${series.titulo_serie}</h1>
+                            <p class="series-author">${author}</p>
+                            <p class="series-description">${description}</p>
+                        </div>
+                    </div>
+                    <div class="podcast-control-bar">
+                        <div class="podcast-left-actions">
+                            <div class="podcast-creator-avatar">
+                                <img src="${cover}" alt="Docente" loading="lazy">
+                            </div>
+                            <button class="podcast-icon-btn" id="podcastBtnAddMain" title="Añadir último episodio a lista">
+                                <img src="${ICONS.add}" alt="">
+                            </button>
+                            <button class="podcast-icon-btn" id="podcastBtnDownloadMain" title="Descargar último episodio">
+                                <img src="${ICONS.dl}" alt="">
+                            </button>
+                            <button class="podcast-icon-btn" id="podcastBtnShareMain" title="Compartir serie">
+                                <img src="${ICONS.add}" alt="">
+                            </button>
+                        </div>
+                        <button class="podcast-last-episode-btn" id="podcastLastEpisodePlayBtn">
+                            <span class="podcast-play-icon-large">
+                                <img src="${ICONS.play}" alt="">
+                            </span>
+                            <span class="podcast-btn-text">
+                                <span class="podcast-small-label">ÚLTIMO EPISODIO</span>
+                                <span class="podcast-strong-title">${lastEpisode.title.substring(0,25)}${lastEpisode.title.length>25?'...':''}</span>
+                            </span>
+                        </button>
+                    </div>
+                </div>
+                <div class="podcast-episodes-list" id="podcastEpisodesListContainer">
+                    ${episodesHtml}
+                </div>
+            </div>
+        `;
+    }
+
+    function attachSeriesEvents(episodes, navigate, showErrorModal) {
+        const lastEpisode = episodes[0];
+        document.getElementById('podcastLastEpisodePlayBtn')?.addEventListener('click', (e) => {
+            e.preventDefault();
+            playEpisode(lastEpisode, episodes, showErrorModal);
+        });
+        document.getElementById('podcastBtnAddMain')?.addEventListener('click', () => {
+            addToUserPlaylist({
+                mediaUrl: lastEpisode.mediaUrl,
+                type: lastEpisode.type,
+                cover: lastEpisode.cover,
+                title: lastEpisode.title,
+                detailUrl: lastEpisode.detailUrl,
+                author: lastEpisode.author,
+                description: lastEpisode.description,
+                allowDownload: lastEpisode.allowDownload,
+                id: lastEpisode.id
+            });
+            const btnImg = document.querySelector('#podcastBtnAddMain img');
+            if (btnImg) btnImg.src = ICONS.added;
+        });
+        document.getElementById('podcastBtnDownloadMain')?.addEventListener('click', () => {
+            if (lastEpisode.allowDownload) {
+                window.open(lastEpisode.mediaUrl, '_blank');
+            } else {
+                showErrorModal('Descarga no disponible', `"${lastEpisode.title}" no puede descargarse.`);
+            }
+        });
+        document.getElementById('podcastBtnShareMain')?.addEventListener('click', async () => {
+            try { await navigator.clipboard.writeText(window.location.href); alert('Enlace copiado'); } catch { }
+        });
+        episodes.forEach((ep, index) => {
+            const card = document.querySelector(`.podcast-episode-card[data-episode-id="${ep.id}"]`);
+            if (!card) return;
+            card.querySelector('.podcast-add-btn')?.addEventListener('click', (e) => {
+                e.stopPropagation();
+                addToUserPlaylist({
+                    mediaUrl: ep.mediaUrl,
+                    type: ep.type,
+                    cover: ep.cover,
+                    title: ep.title,
+                    detailUrl: ep.detailUrl,
+                    author: ep.author,
+                    description: ep.description,
+                    allowDownload: ep.allowDownload,
+                    id: ep.id
+                });
+                const img = e.currentTarget.querySelector('img');
+                if (img) img.src = ICONS.added;
+            });
+            card.querySelector('.podcast-download-btn')?.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (ep.allowDownload) {
+                    window.open(ep.mediaUrl, '_blank');
+                } else {
+                    showErrorModal('Descarga no disponible', `"${ep.title}" no puede descargarse.`);
+                }
+            });
+            card.querySelector('.podcast-share-btn')?.addEventListener('click', async (e) => {
+                e.stopPropagation();
+                await navigator.clipboard.writeText(ep.detailUrl);
+                alert('Enlace copiado');
+            });
+            card.querySelector('.podcast-play-specific')?.addEventListener('click', (e) => {
+                e.stopPropagation();
+                playEpisode(ep, episodes, showErrorModal);
+            });
+            card.addEventListener('click', () => {
+                navigate(ep.detailUrl);
+            });
+        });
+    }
+
+    function renderEpisodeWidget(episode) {
+        const series = episode.series;
+        const inPlaylist = isInPlaylist(episode.mediaUrl);
+        return `
+            <div class="podcast-widget">
+                <div class="podcast-header">
+                    <div class="podcast-header-bg" style="background-image: url('${episode.cover}');"></div>
+                    <div class="podcast-header-content">
+                        <div class="podcast-thumbnail">
+                            <img src="${episode.cover}" alt="${episode.title}">
+                        </div>
+                        <div class="podcast-info">
+                            <h1 class="series-title">${episode.title}</h1>
+                            <p class="series-author">${episode.author}</p>
+                            <p class="series-description">${episode.description || ''}</p>
+                        </div>
+                    </div>
+                    <div class="podcast-control-bar">
+                        <div class="podcast-left-actions">
+                            <div class="podcast-creator-avatar">
+                                <img src="${series?.portada_serie || episode.cover}" alt="Serie">
+                            </div>
+                            <button class="podcast-icon-btn" id="episodeBtnAdd" title="Añadir a lista">
+                                <img src="${inPlaylist ? ICONS.added : ICONS.add}" alt="">
+                            </button>
+                            <button class="podcast-icon-btn" id="episodeBtnDownload" title="Descargar">
+                                <img src="${episode.allowDownload ? ICONS.dl : ICONS.noDl}" alt="">
+                            </button>
+                            <button class="podcast-icon-btn" id="episodeBtnShare" title="Compartir">
+                                <img src="${ICONS.add}" alt="">
+                            </button>
+                        </div>
+                        <button class="podcast-last-episode-btn" id="episodePlayBtn">
+                            <span class="podcast-play-icon-large">
+                                <img src="${ICONS.play}" alt="">
+                            </span>
+                            <span class="podcast-btn-text">
+                                <span class="podcast-small-label">REPRODUCIR</span>
+                                <span class="podcast-strong-title">${episode.title.substring(0,25)}</span>
+                            </span>
+                        </button>
+                    </div>
+                </div>
+                ${series ? `
+                <div class="part-of-program">
+                    <h3 class="text-lg sm:text-xl font-bold mb-4">Parte del programa</h3>
+                    <div class="program-card" onclick="window.StreamHub.navigate('${series.url_serie}')">
+                        <img src="${series.portada_serie || episode.cover}" alt="${series.titulo_serie}">
+                        <div>
+                            <h3>${series.titulo_serie}</h3>
+                            <p>${series.descripcion_serie || ''}</p>
+                            <p class="view-link">Ver más episodios →</p>
+                        </div>
+                    </div>
+                </div>
+                ` : ''}
+            </div>
+        `;
+    }
+
+    function attachEpisodeEvents(episode, navigate, showErrorModal) {
+        document.getElementById('episodeBtnAdd')?.addEventListener('click', () => {
+            addToUserPlaylist({
+                mediaUrl: episode.mediaUrl,
+                type: episode.type,
+                cover: episode.cover,
+                title: episode.title,
+                detailUrl: episode.detailUrl,
+                author: episode.author,
+                description: episode.description,
+                allowDownload: episode.allowDownload,
+                id: episode.id
+            });
+            const img = document.querySelector('#episodeBtnAdd img');
+            if (img) img.src = ICONS.added;
+        });
+        document.getElementById('episodeBtnDownload')?.addEventListener('click', () => {
+            if (episode.allowDownload) {
+                window.open(episode.mediaUrl, '_blank');
+            } else {
+                showErrorModal('Descarga no disponible', `"${episode.title}" no puede descargarse.`);
+            }
+        });
+        document.getElementById('episodeBtnShare')?.addEventListener('click', async () => {
+            await navigator.clipboard.writeText(window.location.href);
+            alert('Enlace copiado');
+        });
+        document.getElementById('episodePlayBtn')?.addEventListener('click', () => {
+            playEpisode(episode, [episode], showErrorModal);
+        });
+    }
+
+    function playEpisode(ep, list, showErrorModal) {
+        try {
+            if (typeof window.playEpisodeExpanded === 'function') {
+                window.playEpisodeExpanded(
+                    ep.mediaUrl,
+                    ep.type || 'audio',
+                    ep.cover,
+                    ep.cover,
+                    ep.title,
+                    ep.detailUrl || '#',
+                    ep.author || 'Desconocido',
+                    list,
+                    ep.description || '',
+                    ep.allowDownload !== undefined ? ep.allowDownload : true
+                );
+            } else {
+                showErrorModal('Reproductor no disponible', `No se pudo iniciar la reproducción de "${ep.title}".`);
+            }
+        } catch (e) {
+            console.error(e);
+            showErrorModal('Error al reproducir', `Ocurrió un problema al reproducir "${ep.title}".`);
+        }
+    }
+
+    function handleDl(ep) {
+        if (!ep.allowDownload) {
+            // Esto será manejado por el showErrorModal del index
+            return;
+        }
+        try {
+            const ext = ep.type === 'video' ? 'mp4' : 'mp3';
+            const filename = `${ep.title.replace(/[^a-z0-9]/gi, '_').substring(0, 50)}.${ext}`;
+            const a = document.createElement('a');
+            a.href = ep.mediaUrl;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+        } catch (error) {
+            window.open(ep.mediaUrl, '_blank');
+        }
+    }
+
+    // Inyectar estilos globales de componentes
     function injectStyles() {
         if (document.getElementById('homeshow-styles')) return;
         const style = document.createElement('style');
@@ -209,340 +743,32 @@
         document.head.appendChild(style);
     }
 
-    // Funciones de renderizado
-    function createStandardCard(ep, isInPlaylistFn, handlePlayFn, handleAddFn, handleDlFn) {
-        const isInPlaylistItem = isInPlaylistFn(ep.mediaUrl);
-        const addIcon = isInPlaylistItem ? ICONS.added : ICONS.add;
-        const dlIcon = ep.allowDownload ? ICONS.dl : ICONS.noDl;
-        return `<div class="card-std group">
-            <div class="relative w-full aspect-square rounded-xl overflow-hidden bg-zinc-800" onclick="App.goToDetail('${ep.detailUrl}')">
-                <img src="${ep.cover}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">
-                <div class="overlay-full">
-                    <img src="${addIcon}" class="action-icon" onclick="App.handleAdd(event, ${ep.id}); return false;" 
-                         data-episode-id="${ep.id}" data-added="${isInPlaylistItem}">
-                    <img src="${ICONS.play}" class="play-icon-lg" onclick="App.handlePlay(event, ${ep.id}); return false;">
-                    <img src="${dlIcon}" class="action-icon" onclick="App.handleDl(event, ${ep.id}); return false;" 
-                         title="${ep.allowDownload ? 'Descargar' : 'Descarga no disponible'}">
-                </div>
-                <div class="mobile-play-button" onclick="App.handlePlay(event, ${ep.id}); return false;">
-                    <img src="${ICONS.play}" alt="Play">
-                </div>
-            </div>
-            <div onclick="App.goToDetail('${ep.detailUrl}')">
-                <h3 class="font-bold text-white text-sm truncate">${ep.title}</h3>
-                <p class="text-xs text-gray-400 mt-1 truncate">${ep.author}</p>
-            </div>
-        </div>`;
-    }
-
-    function createVideoExpand(ep, isInPlaylistFn, handlePlayFn, handleAddFn, handleDlFn) {
-        const isInPlaylistItem = isInPlaylistFn(ep.mediaUrl);
-        const addIcon = isInPlaylistItem ? ICONS.added : ICONS.add;
-        const dlIcon = ep.allowDownload ? ICONS.dl : ICONS.noDl;
-        const hasCover2 = ep.coverWide && ep.coverWide !== ep.cover;
-        return `<div class="card-video group">
-            <img src="${ep.cover}" class="absolute inset-0 w-full h-full object-cover z-10 group-hover:opacity-0 transition-opacity duration-300">
-            ${hasCover2 ? `<img src="${ep.coverWide}" class="absolute inset-0 w-full h-full object-cover opacity-0 group-hover:opacity-100 transition-opacity duration-300">` : ''}
-            <div class="overlay-full z-20">
-                <img src="${addIcon}" class="action-icon" onclick="App.handleAdd(event, ${ep.id}); return false;" 
-                     data-episode-id="${ep.id}" data-added="${isInPlaylistItem}">
-                <img src="${ICONS.play}" class="play-icon-lg" onclick="App.handlePlay(event, ${ep.id}); return false;">
-                <img src="${dlIcon}" class="action-icon" onclick="App.handleDl(event, ${ep.id}); return false;" 
-                     title="${ep.allowDownload ? 'Descargar' : 'Descarga no disponible'}">
-            </div>
-            <div class="mobile-play-button z-30" onclick="App.handlePlay(event, ${ep.id}); return false;">
-                <img src="${ICONS.play}" alt="Play">
-            </div>
-            <div class="absolute bottom-2 left-2 z-20 bg-black/60 px-2 py-0.5 rounded text-[10px] font-bold">VIDEO</div>
-        </div>`;
-    }
-
-    function createListItem(ep, idx, isInPlaylistFn, handlePlayFn, handleAddFn, handleDlFn) {
-        const isInPlaylistItem = isInPlaylistFn(ep.mediaUrl);
-        const addIcon = isInPlaylistItem ? ICONS.added : ICONS.add;
-        return `<div class="list-item group">
-            <span class="text-gray-500 font-bold w-4 text-center text-sm flex-shrink-0">${idx + 1}</span>
-            <div class="relative w-12 h-12 sm:w-14 sm:h-14 flex-shrink-0 rounded overflow-hidden" onclick="App.goToDetail('${ep.detailUrl}')">
-                <img src="${ep.cover}" class="w-full h-full object-cover">
-                <div class="overlay-mini" onclick="App.handlePlay(event, ${ep.id}); return false;"><img src="${ICONS.play}" class="play-icon-sm"></div>
-            </div>
-            <div class="item-content" onclick="App.goToDetail('${ep.detailUrl}')">
-                <h4 class="font-bold text-sm truncate text-white">${ep.title}</h4>
-                <p class="text-xs text-gray-500 truncate">${ep.author}</p>
-            </div>
-            <div class="item-actions">
-                <button class="lg:opacity-0 lg:group-hover:opacity-100 transition-opacity" onclick="App.handleAdd(event, ${ep.id}); return false;">
-                    <img src="${addIcon}" alt="Agregar" class="w-5 h-5" data-episode-id="${ep.id}" data-added="${isInPlaylistItem}">
-                </button>
-                <div class="lg:hidden mobile-play-button" style="position: static; width: 32px; height: 32px;" onclick="App.handlePlay(event, ${ep.id}); return false;">
-                    <img src="${ICONS.play}" alt="Play" class="w-4 h-4">
-                </div>
-            </div>
-        </div>`;
-    }
-
-    function createCarousel(title, type, items, categoryContext, isInPlaylistFn, handlePlayFn, handleAddFn, handleDlFn) {
-        if (!items || items.length === 0) return '';
-        const id = 'c-' + Math.random().toString(36).substr(2, 9);
-        let content = '';
-        if (type === 'double') {
-            content = `<div id="${id}" class="flex flex-col flex-wrap h-[580px] gap-x-6 gap-y-6 overflow-x-auto no-scrollbar scroll-smooth">` + items.map(ep => createStandardCard(ep, isInPlaylistFn, handlePlayFn, handleAddFn, handleDlFn)).join('') + `</div>`;
-        } else if (type === 'list') {
-            content = `<div id="${id}" class="flex gap-4 sm:gap-8 overflow-x-auto no-scrollbar scroll-smooth pb-4">`;
-            for (let i = 0; i < items.length; i += 4) {
-                content += `<div class="card-list-group min-w-[300px] sm:min-w-[340px]">` +
-                    (items[i] ? createListItem(items[i], i, isInPlaylistFn, handlePlayFn, handleAddFn, handleDlFn) : '') +
-                    (items[i+1] ? createListItem(items[i+1], i+1, isInPlaylistFn, handlePlayFn, handleAddFn, handleDlFn) : '') +
-                    (items[i+2] ? createListItem(items[i+2], i+2, isInPlaylistFn, handlePlayFn, handleAddFn, handleDlFn) : '') +
-                    (items[i+3] ? createListItem(items[i+3], i+3, isInPlaylistFn, handlePlayFn, handleAddFn, handleDlFn) : '') +
-                    `</div>`;
-            }
-            content += `</div>`;
-        } else if (type === 'expand') {
-            content = `<div id="${id}" class="flex gap-3 sm:gap-4 overflow-x-auto no-scrollbar scroll-smooth py-2 pl-1">` + items.map(ep => createVideoExpand(ep, isInPlaylistFn, handlePlayFn, handleAddFn, handleDlFn)).join('') + `</div>`;
-        } else {
-            content = `<div id="${id}" class="flex gap-4 sm:gap-6 overflow-x-auto no-scrollbar scroll-smooth py-2 pl-1">` + items.map(ep => createStandardCard(ep, isInPlaylistFn, handlePlayFn, handleAddFn, handleDlFn)).join('') + `</div>`;
-        }
-        return `<section class="carousel-wrapper relative group/section mb-8 sm:mb-12">
-            <div class="flex items-end justify-between mb-3 sm:mb-5 px-1">
-                <h2 class="text-xl sm:text-2xl font-bold tracking-tight text-white hover:text-blue-500 transition-colors">${title}</h2>
-                <button onclick="App.filterByCategory('${categoryContext}')" class="text-xs font-bold text-gray-500 uppercase tracking-wider hover:text-white">Ver todo</button>
-            </div>
-            <div class="relative">
-                <div class="nav-btn left" onclick="document.getElementById('${id}').scrollLeft -= 600"><button>❮</button></div>
-                ${content}
-                <div class="nav-btn right" onclick="document.getElementById('${id}').scrollLeft += 600"><button>❯</button></div>
-            </div>
-        </section>`;
-    }
-
-    function createSeriesCarousel(data, isInPlaylistFn, handlePlayFn, handleAddFn, handleDlFn) {
-        const id = 'c-series-' + Math.random().toString(36).substr(2, 9);
-        const seriesGroups = {};
-        data.forEach(ep => {
-            if (ep.series && ep.series.titulo_serie) {
-                const serieKey = ep.series.titulo_serie;
-                if (!seriesGroups[serieKey]) {
-                    seriesGroups[serieKey] = {episodes: [], seriesInfo: ep.series};
-                }
-                seriesGroups[serieKey].episodes.push(ep);
-            }
-        });
-        const seriesKeys = Object.keys(seriesGroups);
-        if (seriesKeys.length === 0) return '';
-        let content = `<div id="${id}" class="flex gap-4 sm:gap-8 overflow-x-auto no-scrollbar scroll-smooth pb-4">`;
-        seriesKeys.forEach(serieKey => {
-            let group = seriesGroups[serieKey];
-            group.episodes.sort((a, b) => new Date(b.date) - new Date(a.date));
-            const s = group.seriesInfo;
-            if (!s || group.episodes.length < 1) return;
-            content += `<div class="card-list-group min-w-[300px] sm:min-w-[340px]">
-                <div class="mb-4 cursor-pointer" onclick="App.goToDetail('${s.url_serie}')">
-                    <div class="relative w-full aspect-square rounded-xl overflow-hidden bg-zinc-800">
-                        <img src="${s.portada_serie}" class="w-full h-full object-cover">
-                    </div>
-                    <h3 class="font-bold text-white text-sm truncate mt-2">${s.titulo_serie}</h3>
-                    <p class="text-xs text-gray-400">ver serie</p>
-                </div>`;
-            group.episodes.slice(0, 4).forEach((ep, i) => {
-                content += createListItem(ep, i, isInPlaylistFn, handlePlayFn, handleAddFn, handleDlFn);
-            });
-            content += `</div>`;
-        });
-        content += `</div>`;
-        return `<section class="carousel-wrapper relative group/section mb-8 sm:mb-12">
-            <div class="flex items-end justify-between mb-3 sm:mb-5 px-1">
-                <h2 class="text-xl sm:text-2xl font-bold tracking-tight text-white hover:text-blue-500 transition-colors">Series y Cursos Académicos</h2>
-                <button class="text-xs font-bold text-gray-500 uppercase tracking-wider hover:text-white">Ver todo</button>
-            </div>
-            <div class="relative">
-                <div class="nav-btn left" onclick="document.getElementById('${id}').scrollLeft -= 600"><button>❮</button></div>
-                ${content}
-                <div class="nav-btn right" onclick="document.getElementById('${id}').scrollLeft += 600"><button>❯</button></div>
-            </div>
-        </section>`;
-    }
-
-    function createGridCard(item, isInPlaylistFn, handlePlayFn, handleAddFn, handleDlFn) {
-        const isInPlaylistItem = isInPlaylistFn(item.mediaUrl);
-        const addIcon = isInPlaylistItem ? ICONS.added : ICONS.add;
-        const dlIcon = item.allowDownload ? ICONS.dl : ICONS.noDl;
-        return `
-            <div class="grid-card group">
-                <div class="aspect-square bg-zinc-800 relative" onclick="App.goToDetail('${item.detailUrl}')">
-                    <img src="${item.cover}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">
-                    <div class="overlay-full">
-                        <img src="${addIcon}" class="action-icon" onclick="App.handleAdd(event, ${item.id}); return false;" 
-                             data-episode-id="${item.id}" data-added="${isInPlaylistItem}">
-                        <img src="${ICONS.play}" class="play-icon-lg" onclick="App.handlePlay(event, ${item.id}); return false;">
-                        <img src="${dlIcon}" class="action-icon" onclick="App.handleDl(event, ${item.id}); return false;" 
-                             title="${item.allowDownload ? 'Descargar' : 'Descarga no disponible'}">
-                    </div>
-                    <div class="mobile-play-button" onclick="App.handlePlay(event, ${item.id}); return false;">
-                        <img src="${ICONS.play}" alt="Play">
-                    </div>
-                </div>
-                <div onclick="App.goToDetail('${item.detailUrl}')">
-                    <h4 class="font-bold text-sm text-white truncate">${item.title}</h4>
-                    <p class="text-xs text-gray-500 truncate">${item.author}</p>
-                </div>
-            </div>
-        `;
-    }
-
-    function renderSeriesWidget(series, episodes, isInPlaylistFn, handlePlayFn, handleAddFn, handleDlFn, goToDetailFn) {
-        const lastEpisode = episodes[0];
-        const cover = series.portada_serie || episodes[0].cover;
-        const author = episodes[0].author;
-        const description = series.descripcion_serie || 'Sin descripción';
-        const episodesHtml = episodes.map((ep, index) => {
-            const inPlaylist = isInPlaylistFn(ep.mediaUrl);
-            return `
-            <div class="podcast-episode-card" data-episode-id="${ep.id}">
-                <img class="podcast-episode-cover" src="${ep.cover}" alt="${ep.title}" loading="lazy">
-                <div class="podcast-episode-info">
-                    <h3 class="podcast-episode-title">${ep.title}</h3>
-                    <div class="podcast-episode-author">
-                        ${ep.author} <span>${ep.type === 'video' ? 'VIDEO' : 'PODCAST'}</span>
-                    </div>
-                    <div class="podcast-episode-description">${ep.description || ''}</div>
-                    <div class="podcast-episode-actions">
-                        <div class="podcast-left-episode-actions">
-                            <button class="podcast-action-btn podcast-add-btn" data-mediaurl="${ep.mediaUrl}" title="Añadir a mi lista">
-                                <img src="${inPlaylist ? ICONS.added : ICONS.add}" alt="añadir">
-                            </button>
-                            <button class="podcast-action-btn podcast-download-btn" data-mediaurl="${ep.mediaUrl}" data-allow="${ep.allowDownload}" title="${ep.allowDownload ? 'Descargar' : 'Descarga no disponible'}">
-                                <img src="${ep.allowDownload ? ICONS.dl : ICONS.noDl}" alt="descargar">
-                            </button>
-                            <button class="podcast-action-btn podcast-share-btn" data-detailurl="${ep.detailUrl}" data-title="${ep.title}" title="Compartir">
-                                <img src="${ICONS.add}" alt="compartir">
-                            </button>
-                        </div>
-                        <button class="podcast-play-episode-btn podcast-play-specific" data-index="${index}" title="Reproducir episodio">
-                            <img src="${ICONS.play}" alt="play">
-                        </button>
-                    </div>
-                </div>
-            </div>
-        `}).join('');
-        return `
-            <div class="podcast-widget">
-                <div class="podcast-header" id="podcastHeader">
-                    <div class="podcast-header-bg" style="background-image: url('${cover}');"></div>
-                    <div class="podcast-header-content">
-                        <div class="podcast-thumbnail">
-                            <img src="${cover}" alt="${series.titulo_serie}" id="seriesCoverImg">
-                        </div>
-                        <div class="podcast-info">
-                            <h1 class="series-title">${series.titulo_serie}</h1>
-                            <p class="series-author">${author}</p>
-                            <p class="series-description">${description}</p>
-                        </div>
-                    </div>
-                    <div class="podcast-control-bar">
-                        <div class="podcast-left-actions">
-                            <div class="podcast-creator-avatar">
-                                <img src="${cover}" alt="Docente" loading="lazy">
-                            </div>
-                            <button class="podcast-icon-btn" id="podcastBtnAddMain" title="Añadir último episodio a lista">
-                                <img src="${ICONS.add}" alt="">
-                            </button>
-                            <button class="podcast-icon-btn" id="podcastBtnDownloadMain" title="Descargar último episodio">
-                                <img src="${ICONS.dl}" alt="">
-                            </button>
-                            <button class="podcast-icon-btn" id="podcastBtnShareMain" title="Compartir serie">
-                                <img src="${ICONS.add}" alt="">
-                            </button>
-                        </div>
-                        <button class="podcast-last-episode-btn" id="podcastLastEpisodePlayBtn">
-                            <span class="podcast-play-icon-large">
-                                <img src="${ICONS.play}" alt="">
-                            </span>
-                            <span class="podcast-btn-text">
-                                <span class="podcast-small-label">ÚLTIMO EPISODIO</span>
-                                <span class="podcast-strong-title">${lastEpisode.title.substring(0,25)}${lastEpisode.title.length>25?'...':''}</span>
-                            </span>
-                        </button>
-                    </div>
-                </div>
-                <div class="podcast-episodes-list" id="podcastEpisodesListContainer">
-                    ${episodesHtml}
-                </div>
-            </div>
-        `;
-    }
-
-    function renderEpisodeWidget(episode, isInPlaylistFn, handlePlayFn, handleAddFn, handleDlFn, goToDetailFn) {
-        const series = episode.series;
-        const inPlaylist = isInPlaylistFn(episode.mediaUrl);
-        return `
-            <div class="podcast-widget">
-                <div class="podcast-header">
-                    <div class="podcast-header-bg" style="background-image: url('${episode.cover}');"></div>
-                    <div class="podcast-header-content">
-                        <div class="podcast-thumbnail">
-                            <img src="${episode.cover}" alt="${episode.title}">
-                        </div>
-                        <div class="podcast-info">
-                            <h1 class="series-title">${episode.title}</h1>
-                            <p class="series-author">${episode.author}</p>
-                            <p class="series-description">${episode.description || ''}</p>
-                        </div>
-                    </div>
-                    <div class="podcast-control-bar">
-                        <div class="podcast-left-actions">
-                            <div class="podcast-creator-avatar">
-                                <img src="${series?.portada_serie || episode.cover}" alt="Serie">
-                            </div>
-                            <button class="podcast-icon-btn" id="episodeBtnAdd" title="Añadir a lista">
-                                <img src="${inPlaylist ? ICONS.added : ICONS.add}" alt="">
-                            </button>
-                            <button class="podcast-icon-btn" id="episodeBtnDownload" title="Descargar">
-                                <img src="${episode.allowDownload ? ICONS.dl : ICONS.noDl}" alt="">
-                            </button>
-                            <button class="podcast-icon-btn" id="episodeBtnShare" title="Compartir">
-                                <img src="${ICONS.add}" alt="">
-                            </button>
-                        </div>
-                        <button class="podcast-last-episode-btn" id="episodePlayBtn">
-                            <span class="podcast-play-icon-large">
-                                <img src="${ICONS.play}" alt="">
-                            </span>
-                            <span class="podcast-btn-text">
-                                <span class="podcast-small-label">REPRODUCIR</span>
-                                <span class="podcast-strong-title">${episode.title.substring(0,25)}</span>
-                            </span>
-                        </button>
-                    </div>
-                </div>
-                ${series ? `
-                <div class="part-of-program">
-                    <h3 class="text-lg sm:text-xl font-bold mb-4">Parte del programa</h3>
-                    <div class="program-card" onclick="App.goToDetail('${series.url_serie}')">
-                        <img src="${series.portada_serie || episode.cover}" alt="${series.titulo_serie}">
-                        <div>
-                            <h3>${series.titulo_serie}</h3>
-                            <p>${series.descripcion_serie || ''}</p>
-                            <p class="view-link">Ver más episodios →</p>
-                        </div>
-                    </div>
-                </div>
-                ` : ''}
-            </div>
-        `;
-    }
-
-    // Exponer funciones públicas
-    window.Homeshow = {
+    // Exponer todo
+    window.StreamHub = window.StreamHub || {};
+    Object.assign(window.StreamHub, {
+        // Constantes
         ICONS,
-        injectStyles,
+        CATEGORIES,
+        // Funciones de renderizado
         createStandardCard,
         createVideoExpand,
         createListItem,
+        createGridCard,
         createCarousel,
         createSeriesCarousel,
-        createGridCard,
         renderSeriesWidget,
-        renderEpisodeWidget
-    };
+        attachSeriesEvents,
+        renderEpisodeWidget,
+        attachEpisodeEvents,
+        // Playlist
+        addToUserPlaylist,
+        isInPlaylist,
+        handleDl,
+        playEpisode,
+        // Estilos
+        injectStyles
+    });
+
+    // Inyectar estilos automáticamente
+    injectStyles();
 })();
