@@ -12,18 +12,17 @@
     <link rel="icon" type="image/png" sizes="32x32" href="https://media.baltaanay.org/web/image/885-f3d79ca9/xhbalta-aula.png">
     <link rel="icon" type="image/png" sizes="16x16" href="https://media.baltaanay.org/web/image/885-f3d79ca9/xhbalta-aula.png">
     <link rel="apple-touch-icon" href="https://media.baltaanay.org/web/image/885-f3d79ca9/xhbalta-aula.png">
-    <!-- Estilos globales mínimos (solo los necesarios para el layout base) -->
+    <!-- Estilos globales mínimos -->
     <style>
         body { font-family: 'Plus Jakarta Sans', sans-serif; background: #050505; color: white; overflow-x: hidden; }
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-        /* Los estilos específicos de componentes se inyectan dinámicamente desde homeshow.js */
     </style>
 </head>
 <body>
 
 <!-- Search overlay (para móvil) -->
-<div class="search-overlay" id="searchOverlay" onclick="App.closeSearch()"></div>
+<div class="search-overlay" id="searchOverlay"></div>
 
 <!-- Header principal (sticky) -->
 <header id="top-header" class="sticky top-0 z-50 bg-[#050505]/80 backdrop-blur-xl border-b border-white/5">
@@ -36,7 +35,7 @@
         <!-- Búsqueda desktop -->
         <div class="hidden lg:flex items-center gap-4 desktop-search-container">
             <div class="relative">
-                <input type="text" id="desktopSearch" placeholder="Buscar episodios, series..." class="bg-white/10 border border-white/20 rounded-full px-4 py-2 pl-10 text-sm w-64 focus:outline-none focus:ring-2 focus:ring-blue-500" oninput="App.handleDesktopSearchInput(this.value)" onkeypress="if(event.key === 'Enter') App.handleDesktopSearchEnter(event)" onfocus="App.showDesktopSearchResults()">
+                <input type="text" id="desktopSearch" placeholder="Buscar episodios, series..." class="bg-white/10 border border-white/20 rounded-full px-4 py-2 pl-10 text-sm w-64 focus:outline-none focus:ring-2 focus:ring-blue-500">
                 <img src="https://media.baltaanay.org/web/image/793-902e5b33/Search%20%282%29.png" alt="Buscar" class="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4" loading="lazy">
             </div>
             <div class="desktop-search-results" id="desktopSearchResults">
@@ -47,7 +46,7 @@
 
         <!-- Iconos derecha -->
         <div class="flex items-center gap-3 sm:gap-4">
-            <button onclick="App.toggleMobileSearch()" class="lg:hidden text-gray-400 hover:text-white">
+            <button id="mobileSearchToggle" class="lg:hidden text-gray-400 hover:text-white">
                 <img src="https://media.baltaanay.org/web/image/793-902e5b33/Search%20%282%29.png" alt="Buscar" class="w-5 h-5" loading="lazy">
             </button>
             <a href="/novedades" class="relative text-gray-400 hover:text-white">
@@ -65,9 +64,9 @@
 <div id="mobileSearchBar" class="lg:hidden bg-[#050505] p-4 border-b border-white/10" style="transform: translateY(-100%); transition: transform 0.3s ease;">
     <div class="flex items-center gap-3">
         <img src="https://media.baltaanay.org/web/image/793-902e5b33/Search%20%282%29.png" alt="Buscar" class="w-5 h-5" loading="lazy">
-        <input type="text" id="mobileSearchInput" placeholder="Buscar episodios, series..." class="flex-1 bg-transparent border-none text-white text-base sm:text-lg focus:outline-none placeholder-gray-500" oninput="App.handleMobileSearchInput(this.value)" onkeypress="if(event.key === 'Enter') App.handleMobileSearchEnter(event)">
-        <button onclick="App.handleMobileSearchButton()" class="text-white px-3 py-1 bg-blue-600 rounded-md text-sm">Buscar</button>
-        <button onclick="App.toggleMobileSearch()" class="text-white text-xl">×</button>
+        <input type="text" id="mobileSearchInput" placeholder="Buscar episodios, series..." class="flex-1 bg-transparent border-none text-white text-base sm:text-lg focus:outline-none placeholder-gray-500">
+        <button id="mobileSearchButton" class="text-white px-3 py-1 bg-blue-600 rounded-md text-sm">Buscar</button>
+        <button id="mobileSearchClose" class="text-white text-xl">×</button>
     </div>
     <div id="mobileSearchResults" class="mt-4 max-h-[60vh] overflow-y-auto"></div>
 </div>
@@ -85,7 +84,7 @@
     <div id="grid-view" class="hidden transition-opacity duration-300">
         <div class="flex items-center justify-between mb-6 sm:mb-8 mt-4 sm:mt-6">
             <h2 id="grid-title" class="text-xl sm:text-2xl font-bold">Resultados</h2>
-            <button onclick="App.showFeed()" class="text-sm font-bold text-gray-400 hover:text-white flex items-center gap-1">
+            <button id="closeGridBtn" class="text-sm font-bold text-gray-400 hover:text-white flex items-center gap-1">
                 <span class="text-xl">×</span> Cerrar búsqueda
             </button>
         </div>
@@ -99,7 +98,7 @@
     <div id="detail-view" class="hidden transition-opacity duration-300"></div>
 </main>
 
-<!-- Modal de error (oculto por defecto) -->
+<!-- Modal de error -->
 <div id="errorModal" class="fixed inset-0 z-[10000] flex items-center justify-center hidden" style="background: rgba(0,0,0,0.8); backdrop-filter: blur(4px);">
     <div class="bg-[#1e1e2f] rounded-2xl max-w-md w-full p-6 border border-white/10 shadow-2xl">
         <h3 class="text-xl font-bold text-white mb-3" id="errorModalTitle">Error</h3>
@@ -107,24 +106,509 @@
         <div class="flex flex-col sm:flex-row gap-3 justify-end">
             <a href="https://www.baltaanay.org/contactus" target="_blank" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-white text-sm font-semibold text-center">Reportar problema</a>
             <a href="https://www.baltaanay.org/solicitar" target="_blank" class="px-4 py-2 bg-purple-600 hover:bg-purple-700 rounded-lg text-white text-sm font-semibold text-center">Solicitar</a>
-            <button onclick="document.getElementById('errorModal').classList.add('hidden')" class="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg text-white text-sm font-semibold">Cerrar</button>
+            <button id="closeErrorModal" class="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg text-white text-sm font-semibold">Cerrar</button>
         </div>
     </div>
 </div>
 
-<!-- Scripts: episodios.js debe existir y definir window.USER_EPISODES y window.processEpisodes -->
+<!-- Scripts -->
 <script src="episodios.js"></script>
-<!-- Módulo de diseños (homeshow.js) -->
 <script src="homeshow.js"></script>
-<!-- Definición de páginas especiales (se puede ampliar) -->
 <script>
+    // Definición de páginas especiales
     window.PAGES = [
         { titulo: "Biblioteca", url: "/biblioteca", script: "biblioteca.js", header: true },
-        { titulo: "Explorar", url: "/explorar", script: "explorar.js", header: true },
-        { titulo: "404", url: "/404", script: "404.js", header: false } // opcional
+        { titulo: "Explorar", url: "/explorar", script: "explorar.js", header: true }
+        // Agrega más aquí
     ];
+
+    // ==================== INICIALIZACIÓN Y ROUTER ====================
+    (function() {
+        // Obtener datos
+        const DATA = typeof window.processEpisodes === 'function' ? window.processEpisodes() : [];
+        const CATEGORIES = window.StreamHub.CATEGORIES; // desde homeshow.js
+
+        // Variables globales
+        let lastScrollTop = 0;
+        let searchTimeout = null;
+
+        // Utilidades
+        function showErrorModal(title, message) {
+            const modal = document.getElementById('errorModal');
+            if (!modal) return;
+            document.getElementById('errorModalTitle').innerText = title;
+            document.getElementById('errorModalMessage').innerText = message;
+            modal.classList.remove('hidden');
+        }
+
+        // ========== NAVEGACIÓN ==========
+        function navigate(path) {
+            history.pushState({}, '', path);
+            renderPath(path);
+        }
+
+        function renderPath(fullPath) {
+            const [path, query] = fullPath.split('?');
+            const params = new URLSearchParams(query);
+
+            // Ocultar todas las vistas
+            document.getElementById('feed-view').classList.add('hidden');
+            document.getElementById('grid-view').classList.add('hidden');
+            document.getElementById('detail-view').classList.add('hidden');
+
+            // 1. Páginas especiales
+            const page = (window.PAGES || []).find(p => p.url === path);
+            if (page) {
+                const topHeader = document.getElementById('top-header');
+                const categoryFilters = document.getElementById('category-filters');
+                if (page.header) {
+                    topHeader?.classList.remove('hidden');
+                    categoryFilters?.classList.remove('hidden');
+                } else {
+                    topHeader?.classList.add('hidden');
+                    categoryFilters?.classList.add('hidden');
+                }
+
+                const view = document.getElementById('detail-view');
+                view.classList.remove('hidden');
+
+                const renderFuncName = `render${page.titulo}`;
+                if (typeof window[renderFuncName] === 'function') {
+                    view.innerHTML = window[renderFuncName]() || '<div>Error al cargar la página</div>';
+                    document.title = `${page.titulo} · Balta Media`;
+                } else {
+                    // Cargar script dinámicamente
+                    loadScript(page.script)
+                        .then(() => {
+                            if (typeof window[renderFuncName] === 'function') {
+                                view.innerHTML = window[renderFuncName]();
+                                document.title = `${page.titulo} · Balta Media`;
+                            } else {
+                                throw new Error('Función de renderizado no encontrada');
+                            }
+                        })
+                        .catch(() => {
+                            view.innerHTML = window.render404 ? window.render404() : '<div>404</div>';
+                        });
+                }
+                return;
+            }
+
+            // 2. Raíz
+            if (path === '/' || path === '') {
+                document.getElementById('feed-view').classList.remove('hidden');
+                document.getElementById('top-header')?.classList.remove('hidden');
+                document.getElementById('category-filters')?.classList.remove('hidden');
+                document.title = 'Balta Media · Conocimiento en acción';
+                // Asegurar que el feed esté renderizado (ya lo hace initFeed)
+                return;
+            }
+
+            // 3. Búsqueda
+            if (path === '/buscar') {
+                const q = params.get('q');
+                if (q) {
+                    performSearch(q);
+                } else {
+                    navigate('/');
+                }
+                return;
+            }
+
+            // 4. Categoría
+            if (path.startsWith('/categoria/')) {
+                const cat = decodeURIComponent(path.replace('/categoria/', ''));
+                if (CATEGORIES.includes(cat)) {
+                    renderCategoryPills(cat);
+                    const results = DATA.filter(ep => ep.categories.includes(cat));
+                    renderGrid(results, cat);
+                    document.title = `${cat} · Balta Media`;
+                } else {
+                    renderNotFound();
+                }
+                return;
+            }
+
+            // 5. Serie
+            const seriesEpisodes = DATA.filter(ep => ep.series && ep.series.url_serie === path);
+            if (seriesEpisodes.length > 0) {
+                const sorted = [...seriesEpisodes].sort((a, b) => new Date(b.date) - new Date(a.date));
+                const seriesInfo = sorted[0].series;
+                const container = document.getElementById('detail-view');
+                container.classList.remove('hidden');
+                container.innerHTML = window.StreamHub.renderSeriesWidget(seriesInfo, sorted);
+                window.StreamHub.attachSeriesEvents(sorted, navigate, showErrorModal);
+                document.title = `${seriesInfo.titulo_serie} · Balta Media`;
+                return;
+            }
+
+            // 6. Episodio
+            const episode = DATA.find(ep => ep.detailUrl === path);
+            if (episode) {
+                const container = document.getElementById('detail-view');
+                container.classList.remove('hidden');
+                container.innerHTML = window.StreamHub.renderEpisodeWidget(episode);
+                window.StreamHub.attachEpisodeEvents(episode, navigate, showErrorModal);
+                document.title = `${episode.title} · Balta Media`;
+                return;
+            }
+
+            // 7. Novedades
+            if (path === '/novedades') {
+                const sorted = [...DATA].sort((a, b) => new Date(b.date) - new Date(a.date));
+                const recientes = sorted.slice(0, 20);
+                const aleatorios = [...DATA].sort(() => 0.5 - Math.random()).slice(0, 10);
+                const combined = [...new Set([...recientes, ...aleatorios])];
+                renderGrid(combined, 'Novedades y Recomendaciones');
+                document.title = 'Novedades · Balta Media';
+                return;
+            }
+
+            // 8. No encontrado
+            renderNotFound();
+        }
+
+        function renderNotFound() {
+            const container = document.getElementById('detail-view');
+            container.classList.remove('hidden');
+            if (typeof window.render404 === 'function') {
+                container.innerHTML = window.render404();
+            } else {
+                container.innerHTML = `
+                    <div class="detail-404">
+                        <h2 class="text-3xl sm:text-4xl font-bold mb-4">404</h2>
+                        <p class="text-lg sm:text-xl">Este contenido no está disponible</p>
+                        <button onclick="window.StreamHub.navigate('/')" class="mt-6 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded-full">Volver al inicio</button>
+                    </div>
+                `;
+            }
+            document.title = 'Página no encontrada · Balta Media';
+        }
+
+        function loadScript(src) {
+            return new Promise((resolve, reject) => {
+                const script = document.createElement('script');
+                script.src = src;
+                script.onload = resolve;
+                script.onerror = reject;
+                document.head.appendChild(script);
+            });
+        }
+
+        // ========== FUNCIONES DE BÚSQUEDA Y FILTROS ==========
+        function performSearch(query) {
+            if (!query || query.trim() === '') { 
+                navigate('/'); 
+                return; 
+            }
+            const term = query.toLowerCase().trim();
+            let results = DATA.filter(ep =>
+                ep.title.toLowerCase().includes(term) ||
+                ep.author.toLowerCase().includes(term) ||
+                ep.categories.some(c => c.toLowerCase().includes(term)) ||
+                ep.description.toLowerCase().includes(term)
+            );
+            renderGrid(results, `Resultados para "${query}"`);
+            document.title = `Búsqueda: ${query} · Balta Media`;
+        }
+
+        function renderGrid(items, title) {
+            toggleView('grid');
+            const gridContainer = document.getElementById('results-grid');
+            const emptyState = document.getElementById('empty-state');
+            const titleEl = document.getElementById('grid-title');
+            titleEl.innerText = title;
+            gridContainer.innerHTML = '';
+            if (items.length === 0) {
+                emptyState.classList.remove('hidden');
+                gridContainer.classList.add('hidden');
+                const searchTerm = title.replace('Resultados para ', '').replace(/"/g, '');
+                document.getElementById('empty-msg').innerText = `No hemos encontrado nada para "${searchTerm}"`;
+                const suggestions = [...DATA].sort(() => 0.5 - Math.random()).slice(0, 5);
+                const recGrid = document.getElementById('recommendations-grid');
+                recGrid.innerHTML = '';
+                suggestions.forEach(ep => recGrid.innerHTML += window.StreamHub.createGridCard(ep));
+            } else {
+                emptyState.classList.add('hidden');
+                gridContainer.classList.remove('hidden');
+                items.forEach(item => {
+                    gridContainer.innerHTML += window.StreamHub.createGridCard(item);
+                });
+            }
+        }
+
+        function toggleView(view) {
+            const feed = document.getElementById('feed-view');
+            const grid = document.getElementById('grid-view');
+            const detail = document.getElementById('detail-view');
+            feed.classList.add('hidden');
+            grid.classList.add('hidden');
+            detail.classList.add('hidden');
+            if (view === 'feed') feed.classList.remove('hidden');
+            else if (view === 'grid') grid.classList.remove('hidden');
+            else if (view === 'detail') detail.classList.remove('hidden');
+        }
+
+        function renderCategoryPills(activeCat = 'Todos') {
+            const container = document.getElementById('category-pills');
+            if (!container) return;
+            container.innerHTML = '';
+            CATEGORIES.forEach(cat => {
+                const isActive = cat === activeCat;
+                const btn = document.createElement('button');
+                btn.className = `whitespace-nowrap px-3 sm:px-4 py-1 sm:py-1.5 rounded-full text-xs font-bold transition-all ${isActive ? 'bg-white text-black' : 'bg-white/10 text-gray-300 hover:bg-white/20'}`;
+                btn.innerText = cat;
+                btn.onclick = () => filterByCategory(cat);
+                container.appendChild(btn);
+            });
+        }
+
+        function filterByCategory(cat) {
+            renderCategoryPills(cat);
+            if (cat === 'Todos') { 
+                navigate('/');
+                return; 
+            }
+            navigate('/categoria/' + encodeURIComponent(cat));
+        }
+
+        // ========== BÚSQUEDA EN TIEMPO REAL ==========
+        function performQuickSearch(query) {
+            const term = query.toLowerCase().trim();
+            return DATA.filter(ep =>
+                ep.title.toLowerCase().includes(term) ||
+                ep.author.toLowerCase().includes(term) ||
+                ep.categories.some(c => c.toLowerCase().includes(term)) ||
+                ep.description.toLowerCase().includes(term)
+            ).slice(0, 5);
+        }
+
+        function handleDesktopSearchInput(e) {
+            clearTimeout(searchTimeout);
+            const query = e.target.value;
+            if (!query.trim()) {
+                document.getElementById('desktopSearchResults').classList.remove('active');
+                return;
+            }
+            searchTimeout = setTimeout(() => {
+                const results = performQuickSearch(query);
+                renderDesktopSearchResults(results, query);
+            }, 300);
+        }
+
+        function renderDesktopSearchResults(results, query) {
+            const container = document.getElementById('desktopSearchResultsContent');
+            if (!container) return;
+            if (results.length === 0) {
+                container.innerHTML = `<div class="text-center py-4 text-gray-400"><p>No encontramos resultados para "${query}"</p></div>`;
+                return;
+            }
+            container.innerHTML = results.map(ep => `
+                <div class="search-result-item" onclick="window.StreamHub.goToDetail('${ep.detailUrl}'); event.stopPropagation();">
+                    <div class="w-12 h-12 rounded-md overflow-hidden flex-shrink-0">
+                        <img src="${ep.cover}" class="w-full h-full object-cover">
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <h4 class="font-bold text-sm text-white truncate">${ep.title}</h4>
+                        <p class="text-xs text-gray-400 truncate">${ep.author} • ${ep.type === 'video' ? 'Video' : 'Audio'}</p>
+                    </div>
+                </div>
+            `).join('');
+            container.innerHTML += `
+                <div class="search-result-item mt-2 border-t border-white/10 pt-2" onclick="window.StreamHub.navigate('/buscar?q='+encodeURIComponent('${query}'))">
+                    <div class="flex items-center justify-center w-full">
+                        <span class="text-blue-400 font-bold text-sm">Ver todos los resultados para "${query}"</span>
+                    </div>
+                </div>
+            `;
+            document.getElementById('desktopSearchResults').classList.add('active');
+        }
+
+        function handleDesktopSearchEnter(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                const query = e.target.value.trim();
+                if (query) {
+                    navigate('/buscar?q=' + encodeURIComponent(query));
+                    document.getElementById('desktopSearchResults').classList.remove('active');
+                }
+            }
+        }
+
+        // Móvil
+        function toggleMobileSearch() {
+            const el = document.getElementById('mobileSearchBar');
+            const overlay = document.getElementById('searchOverlay');
+            if (!el || !overlay) return;
+            if (el.classList.contains('open')) {
+                el.classList.remove('open');
+                overlay.classList.remove('active');
+                document.getElementById('mobileSearchInput').value = '';
+                document.getElementById('mobileSearchResults').innerHTML = '';
+            } else {
+                el.classList.add('open');
+                overlay.classList.add('active');
+                document.getElementById('mobileSearchInput').focus();
+            }
+        }
+
+        function handleMobileSearchInput(e) {
+            clearTimeout(searchTimeout);
+            const query = e.target.value;
+            if (!query.trim()) {
+                document.getElementById('mobileSearchResults').innerHTML = '';
+                return;
+            }
+            searchTimeout = setTimeout(() => {
+                const results = performQuickSearch(query);
+                renderMobileSearchResults(results, query);
+            }, 300);
+        }
+
+        function renderMobileSearchResults(results, query) {
+            const container = document.getElementById('mobileSearchResults');
+            if (!container) return;
+            if (results.length === 0) {
+                container.innerHTML = `<div class="text-center py-4 text-gray-400"><p>No encontramos resultados para "${query}"</p></div>`;
+                return;
+            }
+            container.innerHTML = results.map(ep => `
+                <div class="search-result-item" onclick="window.StreamHub.goToDetail('${ep.detailUrl}'); closeSearch();">
+                    <div class="w-12 h-12 rounded-md overflow-hidden flex-shrink-0">
+                        <img src="${ep.cover}" class="w-full h-full object-cover">
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <h4 class="font-bold text-sm text-white truncate">${ep.title}</h4>
+                        <p class="text-xs text-gray-400 truncate">${ep.author} • ${ep.type === 'video' ? 'Video' : 'Audio'}</p>
+                    </div>
+                </div>
+            `).join('');
+            container.innerHTML += `
+                <div class="search-result-item mt-2 border-t border-white/10 pt-2" onclick="handleMobileSearchFull('${query}')">
+                    <div class="flex items-center justify-center w-full">
+                        <span class="text-blue-400 font-bold text-sm">Ver todos los resultados para "${query}"</span>
+                    </div>
+                </div>
+            `;
+        }
+
+        function handleMobileSearchFull(query) {
+            navigate('/buscar?q=' + encodeURIComponent(query));
+            toggleMobileSearch();
+        }
+
+        function handleMobileSearchButton() {
+            const query = document.getElementById('mobileSearchInput').value.trim();
+            if (query) handleMobileSearchFull(query);
+        }
+
+        function closeSearch() {
+            document.getElementById('mobileSearchBar')?.classList.remove('open');
+            document.getElementById('searchOverlay')?.classList.remove('active');
+        }
+
+        // ========== INICIALIZACIÓN DEL FEED ==========
+        function initFeed() {
+            if (!DATA || DATA.length === 0) {
+                document.getElementById('feed-view').innerHTML = '<div class="text-center py-20"><p class="text-gray-400 text-lg">No hay contenido disponible.</p></div>';
+                return;
+            }
+            renderCategoryPills();
+            const feed = document.getElementById('feed-view');
+            const getRandomSafe = (count, filterFn) => {
+                const filtered = DATA.filter(filterFn || (() => true));
+                if (filtered.length === 0) return [];
+                const shuffled = [...filtered].sort(() => 0.5 - Math.random());
+                return shuffled.slice(0, Math.min(count, shuffled.length));
+            };
+            feed.innerHTML = '';
+            feed.innerHTML += window.StreamHub.createCarousel("Nuevos Lanzamientos", "standard", getRandomSafe(15, ep => new Date(ep.date) > new Date(Date.now() - 30*24*60*60*1000)), "Todos");
+            feed.innerHTML += window.StreamHub.createCarousel("Series de Video", "expand", getRandomSafe(10, e => e.type === 'video'), "Cine y TV");
+            feed.innerHTML += window.StreamHub.createCarousel("Top Semanal", "list", getRandomSafe(16), "Todos");
+            feed.innerHTML += window.StreamHub.createCarousel("Para Estudiar Profundamente", "double", getRandomSafe(20, e => e.categories.includes("Matemáticas") || e.categories.includes("Física y Astronomía")), "Matemáticas");
+            feed.innerHTML += window.StreamHub.createCarousel("Matemáticas", "standard", getRandomSafe(15, e => e.categories.includes("Matemáticas")), "Matemáticas");
+            feed.innerHTML += window.StreamHub.createCarousel("Especiales en Video", "expand", getRandomSafe(10, e => e.type === 'video' && e.categories.includes("Documentales")), "Documentales");
+            feed.innerHTML += window.StreamHub.createCarousel("Física y Astronomía", "standard", getRandomSafe(15, e => e.categories.includes("Física y Astronomía")), "Física y Astronomía");
+            feed.innerHTML += window.StreamHub.createCarousel("Ciencias Naturales y Tecnología", "double", getRandomSafe(20, e => e.categories.some(c => ["Ciencias Naturales", "Tecnología e Informática"].includes(c))), "Otras Ciencias");
+            feed.innerHTML += window.StreamHub.createSeriesCarousel(DATA);
+            feed.innerHTML += window.StreamHub.createCarousel("Otras Ciencias y Disciplinas", "standard", getRandomSafe(15, e => e.categories.includes("Otras Ciencias") || e.categories.some(c => ["Ciencias Naturales", "Tecnología e Informática"].includes(c))), "Otras Ciencias");
+        }
+
+        // ========== EVENTOS Y LISTENERS ==========
+        document.addEventListener('click', (e) => {
+            const link = e.target.closest('a');
+            if (!link) return;
+            const href = link.getAttribute('href');
+            if (!href) return;
+            if (href.startsWith('http') || href.startsWith('//') || href.startsWith('#')) return;
+            e.preventDefault();
+            navigate(href);
+        });
+
+        window.addEventListener('popstate', () => {
+            renderPath(window.location.pathname + window.location.search);
+        });
+
+        window.addEventListener('scroll', () => {
+            const st = window.pageYOffset || document.documentElement.scrollTop;
+            const topHeader = document.getElementById('top-header');
+            const mobileSearch = document.getElementById('mobileSearchBar');
+            if (st > lastScrollTop && st > 100) {
+                topHeader.style.opacity = '0';
+                topHeader.style.pointerEvents = 'none';
+                mobileSearch.style.opacity = '0';
+                mobileSearch.style.pointerEvents = 'none';
+            } else {
+                topHeader.style.opacity = '1';
+                topHeader.style.pointerEvents = 'auto';
+                mobileSearch.style.opacity = '1';
+                mobileSearch.style.pointerEvents = 'auto';
+            }
+            lastScrollTop = st <= 0 ? 0 : st;
+        });
+
+        // Eventos de búsqueda
+        document.getElementById('desktopSearch')?.addEventListener('input', handleDesktopSearchInput);
+        document.getElementById('desktopSearch')?.addEventListener('keypress', handleDesktopSearchEnter);
+        document.getElementById('mobileSearchToggle')?.addEventListener('click', toggleMobileSearch);
+        document.getElementById('mobileSearchClose')?.addEventListener('click', toggleMobileSearch);
+        document.getElementById('mobileSearchInput')?.addEventListener('input', handleMobileSearchInput);
+        document.getElementById('mobileSearchButton')?.addEventListener('click', handleMobileSearchButton);
+        document.getElementById('closeGridBtn')?.addEventListener('click', () => navigate('/'));
+        document.getElementById('closeErrorModal')?.addEventListener('click', () => document.getElementById('errorModal').classList.add('hidden'));
+
+        // Cerrar búsqueda al hacer clic en overlay
+        document.getElementById('searchOverlay')?.addEventListener('click', closeSearch);
+
+        // Exponer funciones necesarias
+        window.StreamHub = window.StreamHub || {};
+        Object.assign(window.StreamHub, {
+            navigate,
+            goToDetail: (url) => url && navigate(url),
+            showFeed: () => navigate('/'),
+            filterByCategory,
+            handlePlay: (e, id) => {
+                e.preventDefault();
+                const ep = DATA.find(x => x.id == id);
+                if (ep) window.StreamHub.playEpisode(ep);
+                else showErrorModal('Episodio no encontrado', 'No se pudo encontrar el episodio.');
+            },
+            handleAdd: (e, id) => {
+                e.preventDefault();
+                const ep = DATA.find(x => x.id == id);
+                if (ep) window.StreamHub.addToUserPlaylist(ep);
+            },
+            handleDl: (e, id) => {
+                e.preventDefault();
+                const ep = DATA.find(x => x.id == id);
+                if (ep) window.StreamHub.handleDl(ep);
+            }
+        });
+
+        // Inicializar todo
+        initFeed();
+        renderPath(window.location.pathname + window.location.search);
+    })();
 </script>
-<!-- Script principal de la aplicación (motor) -->
-<script src="app.js"></script>
 </body>
 </html>
