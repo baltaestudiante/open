@@ -1,12 +1,14 @@
 <!DOCTYPE html>
-<html>
+<html lang="es">
 <head>
-    <meta charset="utf-8">
+    <meta charset="UTF-8">
     <title>Redirigiendo...</title>
     <script>
-        sessionStorage.redirect = location.pathname + location.search + location.hash;
-        location.replace('/');
+        // Redirigir a la raíz, pero conservando la ruta para que el SPA la procese
+        window.location.href = '/' + window.location.pathname.slice(1) + window.location.search + window.location.hash;
     </script>
 </head>
-<body></body>
+<body>
+    <p>Redirigiendo...</p>
+</body>
 </html>
